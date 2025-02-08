@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Main App</title>
+</head>
+<body>
+    <h1>Main App</h1>
+    <button onclick="setTheme()">Set Theme</button>
+    <button onclick="getTheme()">Get Theme</button>
+    <button onclick="requestStorageAccess()">Enable Storage (Safari)</button>
+
+    <script>
+        const iframe = document.createElement("iframe");
+        iframe.src = "https://local.cache.com:8081";
+        iframe.style.display = "none";
+        document.body.appendChild(iframe);
+
+        function sendMessage(action, key, value = null) {
+            return new Promise((resolve) => {
+                function listener(event) {
+                    if (event.origin === "https://local.cache.com:8081") {
+                        resolve(event.data.value);
+                        window.removeEventListener("message", listener);
+                    }
+                }
+                window.addEventListener("message", listener);
+                iframe.contentWindow.postMessage({ action, key, value }, "https://local.cache.com:8081");
+            });
+        }
+
+        function setTheme() {
+            sendMessage("set", "theme", "dark").then(() => console.log("Theme set in IndexedDB!"));
+        }
+
+        function getTheme() {
+            sendMessage("get", "theme").then((value) => console.log("Theme from IndexedDB:", value));
+        }
+
+        async function requestStorageAccess() {
+            if (document.requestStorageAccess) {
+                try {
+                    await document.requestStorageAccess();
+                    console.log("✅ Storage access granted!");
+                } catch (error) {
+                    console.warn("🚫 Storage access denied:", error);
+                }
+            } else {
+                console.log("✅ Storage Access API not needed in this browser.");
+            }
+        }
+    </script>
+</body>
+</html>
