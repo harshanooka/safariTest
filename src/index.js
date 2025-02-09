@@ -43,7 +43,6 @@ async function getIndexedDB(key) {
 }
 
 window.addEventListener("message", async (event) => {
-  if (!event.origin.endsWith(".cache.com:8082") && !event.origin.endsWith(".cache.com:8083")) return;
   const { action, key, value } = event.data;
   if (action === "set") {
     await setIndexedDB(key, value);
