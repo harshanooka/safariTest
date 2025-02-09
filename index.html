@@ -37,6 +37,7 @@
             });
         }
 
+        // Ensure only allowed origins can communicate
         window.addEventListener("message", async (event) => {
             if (!event.origin.endsWith(".vercel.app")) return; // Security check
 
@@ -44,12 +45,30 @@
 
             if (action === "set") {
                 await setIndexedDB(key, value);
+                event.source.postMessage({ key, value: "Saved" }, event.origin);
             } else if (action === "get") {
                 const storedValue = await getIndexedDB(key);
                 event.source.postMessage({ key, value: storedValue }, event.origin);
             }
         });
 
+        async function requestStorageAccess() {
+            if (document.hasStorageAccess) {
+                const hasAccess = await document.hasStorageAccess();
+                if (!hasAccess) {
+                    try {
+                        await document.requestStorageAccess();
+                        console.log("✅ Storage access granted!");
+                    } catch (error) {
+                        console.warn("🚫 Storage access denied:", error);
+                    }
+                } else {
+                    console.log("✅ IndexedDB access confirmed.");
+                }
+            }
+        }
+
+        requestStorageAccess();
         console.log("✅ Iframe storage server is ready!");
     </script>
 </body>
