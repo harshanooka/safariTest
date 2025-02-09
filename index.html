@@ -4,8 +4,23 @@
     <title>Cache Storage Server</title>
 </head>
 <body>
-    <h1>Storage Server (Iframe)</h1>
     <script>
+        async function requestStorageAccess() {
+            if (document.hasStorageAccess) {
+                const hasAccess = await document.hasStorageAccess();
+                if (!hasAccess) {
+                    try {
+                        await document.requestStorageAccess();
+                        console.log("✅ Storage access granted!");
+                    } catch (error) {
+                        console.warn("🚫 Storage access denied:", error);
+                    }
+                } else {
+                    console.log("✅ IndexedDB access confirmed.");
+                }
+            }
+        }
+
         async function openDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open("CrossDomainCacheDB", 1);
@@ -55,8 +70,11 @@
             const { action, key, value } = event.data;
 
             if (action === "set") {
+                await requestStorageAccess();
                 await setIndexedDB(key, value);
+                event.source.postMessage({ key, value: "Saved" }, event.origin);
             } else if (action === "get") {
+                await requestStorageAccess();
                 const storedValue = await getIndexedDB(key);
                 event.source.postMessage({ key, value: storedValue }, event.origin);
             }
