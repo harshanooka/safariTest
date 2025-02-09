@@ -4,6 +4,7 @@
     <title>Cache Storage Server</title>
 </head>
 <body>
+    <h1>Storage Server (Iframe)</h1>
     <script>
         async function openDB() {
             return new Promise((resolve, reject) => {
@@ -14,7 +15,10 @@
                         db.createObjectStore("cacheStore", { keyPath: "key" });
                     }
                 };
-                request.onsuccess = (event) => resolve(event.target.result);
+                request.onsuccess = (event) => {
+                    console.log("✅ IndexedDB opened");
+                    resolve(event.target.result);
+                };
                 request.onerror = (event) => reject(event.target.error);
             });
         }
@@ -24,6 +28,7 @@
             const transaction = db.transaction("cacheStore", "readwrite");
             const store = transaction.objectStore("cacheStore");
             store.put({ key, value });
+            console.log(`✅ Saved in IndexedDB: ${key} = ${value}`);
         }
 
         async function getIndexedDB(key) {
@@ -32,43 +37,31 @@
                 const transaction = db.transaction("cacheStore", "readonly");
                 const store = transaction.objectStore("cacheStore");
                 const request = store.get(key);
-                request.onsuccess = () => resolve(request.result ? request.result.value : null);
+                request.onsuccess = () => {
+                    console.log(`📦 Retrieved from IndexedDB: ${key} = ${request.result?.value}`);
+                    resolve(request.result ? request.result.value : null);
+                };
                 request.onerror = () => reject(request.error);
             });
         }
 
-        // Ensure only allowed origins can communicate
         window.addEventListener("message", async (event) => {
-            if (!event.origin.endsWith(".vercel.app")) return; // Security check
+            if (!event.origin.endsWith(".vercel.app")) {
+                console.warn("❌ Rejected message from unknown origin:", event.origin);
+                return;
+            }
 
+            console.log("📩 Received message:", event.data);
             const { action, key, value } = event.data;
 
             if (action === "set") {
                 await setIndexedDB(key, value);
-                event.source.postMessage({ key, value: "Saved" }, event.origin);
             } else if (action === "get") {
                 const storedValue = await getIndexedDB(key);
                 event.source.postMessage({ key, value: storedValue }, event.origin);
             }
         });
 
-        async function requestStorageAccess() {
-            if (document.hasStorageAccess) {
-                const hasAccess = await document.hasStorageAccess();
-                if (!hasAccess) {
-                    try {
-                        await document.requestStorageAccess();
-                        console.log("✅ Storage access granted!");
-                    } catch (error) {
-                        console.warn("🚫 Storage access denied:", error);
-                    }
-                } else {
-                    console.log("✅ IndexedDB access confirmed.");
-                }
-            }
-        }
-
-        requestStorageAccess();
         console.log("✅ Iframe storage server is ready!");
     </script>
 </body>
