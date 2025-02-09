@@ -7,10 +7,19 @@
     <h2>Granting Storage Access...</h2>
     <script>
         async function grantAccess() {
+            // Check if storage is already unlocked to avoid infinite redirect
+            if (document.cookie.includes("storageUnlocked=true")) {
+                console.log("✅ Storage access already granted, returning to site.");
+                const params = new URLSearchParams(window.location.search);
+                const returnUrl = params.get("returnUrl") || "https://safari-test-local1.vercel.app";
+                window.location.href = returnUrl;
+                return;
+            }
+
             if (document.requestStorageAccess) {
                 try {
                     await document.requestStorageAccess();
-                    document.cookie = "storageUnlocked=true; path=/; domain=.vercel.app; Secure";
+                    document.cookie = "storageUnlocked=true; path=/; domain=.vercel.app; Secure; SameSite=None";
                     console.log("✅ Storage access granted!");
 
                     // Redirect back to original site
