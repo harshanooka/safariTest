@@ -4,47 +4,16 @@
     <title>Cache Storage Server</title>
 </head>
 <body>
-    <button onclick="requestStorage()">Enable Storage Access (Safari Only)</button>
     <script>
-        async function requestStorage() {
-            if (document.requestStorageAccess) {
-                try {
-                    await document.requestStorageAccess();
-                    console.log("✅ Storage access granted!");
-                } catch (error) {
-                    console.warn("🚫 Storage access denied:", error);
-                }
-            } else {
-                console.log("✅ Storage Access API not needed in this browser.");
-            }
-        }
-
-        async function checkStoragePermission() {
-            if (document.hasStorageAccess) {
-                const hasAccess = await document.hasStorageAccess();
-                if (!hasAccess) {
-                    console.warn("🚫 No IndexedDB access in iframe. Requesting...");
-                    return;
-                }
-                console.log("✅ IndexedDB access confirmed.");
-            }
-        }
-
-        // Call checkStoragePermission() automatically
-        checkStoragePermission();
-
-        // IndexedDB functions
-        function openDB() {
+        async function openDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open("CrossDomainCacheDB", 1);
-
                 request.onupgradeneeded = (event) => {
                     const db = event.target.result;
                     if (!db.objectStoreNames.contains("cacheStore")) {
                         db.createObjectStore("cacheStore", { keyPath: "key" });
                     }
                 };
-
                 request.onsuccess = (event) => resolve(event.target.result);
                 request.onerror = (event) => reject(event.target.error);
             });
@@ -63,16 +32,16 @@
                 const transaction = db.transaction("cacheStore", "readonly");
                 const store = transaction.objectStore("cacheStore");
                 const request = store.get(key);
-
                 request.onsuccess = () => resolve(request.result ? request.result.value : null);
                 request.onerror = () => reject(request.error);
             });
         }
 
         window.addEventListener("message", async (event) => {
+            if (!event.origin.endsWith(".vercel.app")) return; // Security check
 
             const { action, key, value } = event.data;
-            
+
             if (action === "set") {
                 await setIndexedDB(key, value);
             } else if (action === "get") {
@@ -80,6 +49,8 @@
                 event.source.postMessage({ key, value: storedValue }, event.origin);
             }
         });
+
+        console.log("✅ Iframe storage server is ready!");
     </script>
 </body>
 </html>
