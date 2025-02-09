@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grant Storage Access</title>
+</head>
+<body>
+    <h2>Granting Storage Access...</h2>
+    <script>
+        async function grantAccess() {
+            if (document.requestStorageAccess) {
+                try {
+                    await document.requestStorageAccess();
+                    document.cookie = "storageUnlocked=true; path=/; domain=.vercel.app; Secure";
+                    console.log("✅ Storage access granted!");
+
+                    // Redirect back to original site
+                    const params = new URLSearchParams(window.location.search);
+                    const returnUrl = params.get("returnUrl") || "https://safari-test-local1.vercel.app";
+                    window.location.href = returnUrl;
+                } catch (error) {
+                    console.warn("🚫 Storage access denied:", error);
+                }
+            }
+        }
+
+        grantAccess();
+    </script>
+</body>
+</html>
