@@ -1,26 +1,52 @@
 async function requestStorage() {
-  if (document.hasStorageAccess) {
-    const hasAccess = await document.hasStorageAccess();
-    if (!hasAccess) {
-      console.warn("🚫 No IndexedDB access in iframe. Redirecting...");
-      window.location.href = "https://local.cache.com:8081/grant-access.html";
-      return;
+  if (document.requestStorageAccess) {
+    try {
+      await document.requestStorageAccess();
+      console.log("Storage access granted!");
+    } catch (error) {
+      console.warn("Storage access denied:", error);
     }
-    console.log("✅ IndexedDB access confirmed.");
+  } else {
+    console.log("Storage Access API not needed in this browser.");
   }
 }
 
+async function checkStoragePermission() {
+  if (document.hasStorageAccess) {
+    const hasAccess = await document.hasStorageAccess();
+    if (!hasAccess) {
+      console.warn("No IndexedDB access in iframe. Requesting...");
+      return;
+    }
+    console.log("IndexedDB access confirmed.");
+  }
+}
+
+// Call checkStoragePermission() automatically
+checkStoragePermission();
+
+// IndexedDB functions
 function openDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("CrossDomainCacheDB", 1);
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
+
+    request.onupgradeneeded = () => {
+      console.log("Upgrading IndexedDB: Creating object store...");
+      const db = request.result;
       if (!db.objectStoreNames.contains("cacheStore")) {
         db.createObjectStore("cacheStore", { keyPath: "key" });
       }
     };
-    request.onsuccess = (event) => resolve(event.target.result);
-    request.onerror = (event) => reject(event.target.error);
+
+    request.onsuccess = () => {
+      console.log("IndexedDB opened successfully!");
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      console.error("IndexedDB Error:", request.error);
+      reject(request.error);
+    };
   });
 }
 
@@ -37,19 +63,24 @@ async function getIndexedDB(key) {
     const transaction = db.transaction("cacheStore", "readonly");
     const store = transaction.objectStore("cacheStore");
     const request = store.get(key);
+
     request.onsuccess = () => resolve(request.result ? request.result.value : null);
     request.onerror = () => reject(request.error);
   });
 }
 
 window.addEventListener("message", async (event) => {
+  if (!event.origin.endsWith(".cache.com:8082") && !event.origin.endsWith(".cache.com:8083")) {
+    return;
+  }
+
   const { action, key, value } = event.data;
+
   if (action === "set") {
     await setIndexedDB(key, value);
+    event.source?.postMessage({ key, value: null }, event.origin);
   } else if (action === "get") {
     const storedValue = await getIndexedDB(key);
-    event.source.postMessage({ key, value: storedValue }, event.origin);
+    event.source?.postMessage({ key, value: storedValue }, event.origin);
   }
 });
-
-requestStorage();
