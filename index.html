@@ -23,10 +23,10 @@
         const { action, key, value } = event.data;
 
         if (action === "set") {
-          localStorage.setItem(key, value);
+          document.cookie = `${key}=${value}`;
           event.source?.postMessage({ key, value: null }, { targetOrigin: event.origin });
         } else if (action === "get") {
-          const storedValue = localStorage.getItem(key);
+          const storedValue = document.cookie;
           event.source?.postMessage({ key, value: storedValue }, { targetOrigin: event.origin });
         }
       });
