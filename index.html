@@ -1,10 +1,54 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Cache Storage Server</title>
+    <title>Storage Provider</title>
   </head>
   <body>
-    <button onclick="requestStorage()">Enable Storage Access (Safari Only)</button>
-    <script src="./src/index.js"></script>
+    <button id="initStorage">Initialize Storage Access</button>
+    <button id="requestStorage" style="display: none">Request Storage Access in embedded context</button>
+
+    <script>
+      document.querySelector("#initStorage").addEventListener("click", () => {
+        document.cookie = "visited=true; expires=Fri, 31 Dec 9999 23:59:59 GMT";
+      });
+
+      document.querySelector("#requestStorage").addEventListener("click", () => {
+        document.requestStorageAccess().then((value) => {
+          console.log("requesting storage access in embedded context", value);
+        });
+      });
+
+      window.addEventListener("message", async (event) => {
+        document.cookie = "unauthorized=true";
+        const { action, key, value } = event.data;
+
+        if (action === "set") {
+          localStorage.setItem(key, value);
+          event.source?.postMessage({ key, value: null }, { targetOrigin: event.origin });
+        } else if (action === "get") {
+          const storedValue = localStorage.getItem(key);
+          event.source?.postMessage({ key, value: storedValue }, { targetOrigin: event.origin });
+        }
+      });
+
+      const urlSearchParams = new URLSearchParams(window.location.search);
+      if (urlSearchParams.get("embedded")) {
+        document
+          .requestStorageAccess()
+          .then((value) => {
+            if (value) {
+              console.log("Request storage access already present");
+            } else {
+              const requestStorageBtn = document.querySelector("#requestStorage");
+              requestStorageBtn.style.display = "block";
+            }
+          })
+          .catch((value) => {
+            console.log("reject promise");
+            const requestStorageBtn = document.querySelector("#requestStorage");
+            requestStorageBtn.style.display = "block";
+          });
+      }
+    </script>
   </body>
 </html>
